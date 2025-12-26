@@ -1,0 +1,117 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String   @id @default(uuid())
+  email         String   @unique
+  passwordHash  String?
+  walletAddress String?  @unique
+  role          String
+  nonce         String?
+  createdAt     DateTime @default(now())
+
+  farmerBatches       Batch[]            @relation("FarmerBatches")
+  distributorActions  DistributorBatch[]
+  distributorPayments Payment[]          @relation("DistributorPayments")
+  consumerSales       ConsumerPayment[]  @relation("DistributorConsumerPayments")
+  consumerBatches     ConsumerBatch[]
+  consumerPayments    ConsumerPayment[]  @relation("ConsumerPayments")
+  consumerReviews     ConsumerReview[]
+
+  paymentsAsConsumer Payment[] @relation("ConsumerPaymentsInPayment")
+}
+
+model Batch {
+  batchId      String   @id @default(uuid())
+  farmerId     String?
+  farmer       User ?    @relation("FarmerBatches", fields: [farmerId], references: [id])
+  farmerWallet String
+  farmerName   String
+  farmerPhone  String
+  name         String
+  description  String?
+  quantity     Int
+  location     String?
+  status       String    @default("harvested")
+  harvestDate  DateTime?
+  imageUrl     String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  distributorActions DistributorBatch[]
+  payments           Payment[]
+  consumerActions    ConsumerBatch[]
+  consumerPayments   ConsumerPayment[]
+  reviews            ConsumerReview[]
+}
+
+model DistributorBatch {
+  id               String   @id @default(uuid())
+  batchId          String
+  distributorId    String
+  distributorEmail String
+  distributorName  String
+  action           String
+  createdAt        DateTime @default(now())
+  batch       Batch @relation(fields: [batchId], references: [batchId])
+  distributor User  @relation(fields: [distributorId], references: [id])
+  @@unique([batchId, distributorId])
+}
+
+model Payment {
+  id            String   @id @default(uuid())
+  batchId       String
+  farmerWallet  String
+  distributorId String
+  consumerId   String?
+  amount        Int      @default(0)
+  status        String   @default("Pending")
+  createdAt     DateTime @default(now())
+  batch       Batch @relation(fields: [batchId], references: [batchId])
+  distributor User  @relation("DistributorPayments", fields: [distributorId], references: [id])
+  consumer    User?  @relation("ConsumerPaymentsInPayment", fields: [consumerId], references: [id])
+  
+}
+
+model ConsumerBatch {
+  id            String   @id @default(uuid())
+  batchId       String
+  consumerId    String
+  consumerEmail String
+  action        String
+  createdAt     DateTime @default(now())
+  batch    Batch @relation(fields: [batchId], references: [batchId])
+  consumer User  @relation(fields: [consumerId], references: [id])
+  @@unique([batchId, consumerId])
+}
+
+model ConsumerPayment {
+  id            String   @id @default(uuid())
+  batchId       String
+  consumerId    String
+  distributorId String
+  amount        Int
+  status        String   @default("Pending")
+  createdAt     DateTime @default(now())
+  batch       Batch @relation(fields: [batchId], references: [batchId])
+  consumer    User  @relation("ConsumerPayments", fields: [consumerId], references: [id])
+  distributor User  @relation("DistributorConsumerPayments", fields: [distributorId], references: [id])
+}
+
+model ConsumerReview {
+  id         String   @id @default(uuid())
+  batchId    String
+  consumerId String
+  rating     Int
+  title      String
+  comment    String
+  createdAt  DateTime @default(now())
+  batch    Batch @relation(fields: [batchId], references: [batchId])
+  consumer User  @relation(fields: [consumerId], references: [id])
+  @@unique([batchId, consumerId])
+}
